@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>TripTrace</title>
+<style>
+/* ══════════════════════════════════════
+   RESET & ROOT
+══════════════════════════════════════ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --c-bg:       #f0f4f8;
+  --c-white:    #ffffff;
+  --c-border:   #e2e8f0;
+  --c-text:     #0f172a;
+  --c-muted:    #94a3b8;
+  --c-green:    #10b981;
+  --c-green-d:  #059669;
+  --c-green-bg: #d1fae5;
+  --c-blue:     #3b82f6;
+  --c-purple:   #8b5cf6;
+  --c-amber:    #f59e0b;
+  --c-red:      #ef4444;
+  --c-red-bg:   #fee2e2;
+  --radius:     16px;
+  --radius-sm:  10px;
+  --shadow:     0 2px 12px rgba(0,0,0,0.08);
+  --shadow-lg:  0 8px 32px rgba(0,0,0,0.12);
+}
+
+html, body {
+  height: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
+  background: var(--c-bg);
+  color: var(--c-text);
+  -webkit-tap-highlight-color: transparent;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ══════════════════════════════════════
+   HEADER
+══════════════════════════════════════ */
+.header {
+  background: var(--c-white);
+  padding: 14px 20px 14px;
+  padding-top: max(14px, env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 200;
+  border-bottom: 1px solid var(--c-border);
+  box-shadow: 0 1px 0 var(--c-border);
+}
+
+.logo {
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+  color: var(--c-text);
+}
+.logo span { color: var(--c-green); }
+
+.rec-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 6px 12px;
+  border-radius: 99px;
+  background: var(--c-bg);
+  color: var(--c-muted);
+  transition: all 0.3s ease;
+  border: 1.5px solid var(--c-border);
+}
+.rec-pill.active {
+  background: var(--c-green-bg);
+  color: var(--c-green-d);
+  border-color: #6ee7b7;
+}
+.rec-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--c-muted);
+  transition: background 0.3s;
+  flex-shrink: 0;
+}
+.rec-pill.active .rec-dot {
+  background: var(--c-green);
+  animation: recblink 1s infinite;
+}
+@keyframes recblink { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.4;transform:scale(0.8)} }
+
+/* ══════════════════════════════════════
+   SCROLL AREA
+══════════════════════════════════════ */
+.scroll {
+  padding: 16px 16px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+/* ══════════════════════════════════════
+   ALERT
+══════════════════════════════════════ */
+.alert {
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  font-size: 0.83rem;
+  font-weight: 500;
+  line-height: 1.5;
+  display: none;
+  animation: slideDown 0.25s ease;
+}
+.alert.show { display: block; }
+@keyframes slideDown { from{opacity:0;transform:translateY(-6px)} to{opacity:1;transform:none} }
+.alert.info    { background:#eff6ff; color:#1d4ed8; border:1.5px solid #bfdbfe; }
+.alert.success { background:var(--c-green-bg); color:var(--c-green-d); border:1.5px solid #6ee7b7; }
+.alert.error   { background:var(--c-red-bg); color:#b91c1c; border:1.5px solid #fca5a5; }
+
+/* ══════════════════════════════════════
+   CANVAS RUTE
+══════════════════════════════════════ */
+.map-card {
+  background: var(--c-white);
+  border-radius: var(--radius);
+  border: 1px solid var(--c-border);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+
+.map-header {
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-muted);
+  border-bottom: 1px solid var(--c-border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.map-gps-acc {
+  font-size: 0.68rem;
+  color: var(--c-muted);
+  font-weight: 500;
+  display: none;
+}
+
+.map-wrap {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  background: #eef7ef;
+}
+
+canvas#cvs { display: block; width: 100%; height: 100%; }
+
+.map-empty {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  pointer-events: none;
+  transition: opacity 0.3s;
+}
+.map-empty.hidden { opacity: 0; }
+.map-empty-ico { font-size: 2.2rem; }
+.map-empty-txt { font-size: 0.8rem; color: var(--c-muted); text-align: center; padding: 0 20px; line-height: 1.5; }
+
+.map-coords {
+  position: absolute;
+  bottom: 8px; left: 8px;
+  background: rgba(15,23,42,0.65);
+  color: #fff;
+  font-size: 0.6rem;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: none;
+  backdrop-filter: blur(4px);
+}
+
+/* ══════════════════════════════════════
+   STATS GRID
+══════════════════════════════════════ */
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.stat-card {
+  background: var(--c-white);
+  border-radius: var(--radius);
+  border: 1px solid var(--c-border);
+  padding: 16px 14px 14px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s;
+}
+.stat-card:active { transform: scale(0.97); }
+
+.stat-accent {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  border-radius: 0;
+}
+
+.sc-green  .stat-accent { background: linear-gradient(90deg, var(--c-green), #34d399); }
+.sc-blue   .stat-accent { background: linear-gradient(90deg, var(--c-blue), #60a5fa); }
+.sc-purple .stat-accent { background: linear-gradient(90deg, var(--c-purple), #a78bfa); }
+.sc-amber  .stat-accent { background: linear-gradient(90deg, var(--c-amber), #fcd34d); }
+
+.stat-lbl {
+  font-size: 0.67rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-muted);
+  margin-bottom: 6px;
+}
+
+.stat-val {
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -1px;
+  color: var(--c-text);
+  transition: color 0.3s;
+}
+
+.sc-green  .stat-val { color: var(--c-green-d); }
+.sc-blue   .stat-val { color: #1d4ed8; }
+.sc-purple .stat-val { color: #6d28d9; }
+.sc-amber  .stat-val { color: #d97706; }
+
+.stat-unit {
+  font-size: 0.68rem;
+  color: var(--c-muted);
+  font-weight: 500;
+  margin-top: 3px;
+}
+
+/* Live update flash */
+@keyframes flash { 0%{opacity:0.4} 100%{opacity:1} }
+.flashed { animation: flash 0.3s ease; }
+
+/* ══════════════════════════════════════
+   JARAK BESAR (HERO)
+══════════════════════════════════════ */
+.dist-hero {
+  background: var(--c-white);
+  border-radius: var(--radius);
+  border: 1px solid var(--c-border);
+  box-shadow: var(--shadow);
+  padding: 20px 20px 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.dist-left {}
+.dist-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--c-muted);
+  margin-bottom: 4px;
+}
+.dist-value {
+  font-size: 3.8rem;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -2px;
+  color: var(--c-text);
+  transition: all 0.2s;
+}
+.dist-unit {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--c-muted);
+  margin-left: 4px;
+  vertical-align: bottom;
+  line-height: 1;
+}
+.dist-right {
+  text-align: right;
+}
+.dist-points {
+  font-size: 0.68rem;
+  color: var(--c-muted);
+  font-weight: 500;
+}
+.dist-points strong {
+  display: block;
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--c-blue);
+  letter-spacing: -0.5px;
+}
+
+/* ══════════════════════════════════════
+   TOMBOL
+══════════════════════════════════════ */
+.btn-row {
+  display: flex;
+  gap: 10px;
+  position: fixed;
+  bottom: 0;
+  left: 0; right: 0;
+  padding: 12px 16px;
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+  background: rgba(240,244,248,0.9);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--c-border);
+  z-index: 100;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.btn {
+  flex: 1;
+  padding: 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: -0.2px;
+  transition: all 0.15s;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+.btn:active { transform: scale(0.95); }
+.btn:disabled { opacity: 0.35; cursor: not-allowed; transform: none; }
+
+.btn-start {
+  background: var(--c-green);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(16,185,129,0.35);
+}
+.btn-start:not(:disabled):hover { background: var(--c-green-d); }
+
+.btn-stop {
+  background: var(--c-red-bg);
+  color: var(--c-red);
+  border: 1.5px solid #fca5a5;
+}
+.btn-stop:not(:disabled):hover { background: #fecaca; }
+
+/* ══════════════════════════════════════
+   RIWAYAT
+══════════════════════════════════════ */
+.hist-card {
+  background: var(--c-white);
+  border-radius: var(--radius);
+  border: 1px solid var(--c-border);
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.hist-head {
+  padding: 10px 14px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--c-muted);
+  border-bottom: 1px solid var(--c-border);
+}
+.hist-empty {
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--c-muted);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+.hist-item {
+  padding: 13px 14px;
+  border-bottom: 1px solid #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: slideDown 0.2s ease;
+}
+.hist-item:last-child { border: none; }
+.hist-main { flex: 1; min-width: 0; }
+.hist-date { font-size: 0.68rem; color: var(--c-muted); margin-bottom: 5px; font-weight: 500; }
+.hist-stats { display: flex; gap: 14px; flex-wrap: wrap; }
+.hs { display: flex; flex-direction: column; }
+.hs-v { font-size: 0.9rem; font-weight: 700; color: var(--c-text); }
+.hs-l { font-size: 0.6rem; color: var(--c-muted); text-transform: uppercase; letter-spacing: 0.05em; font-weight: 600; }
+.del-btn {
+  background: none;
+  border: 1.5px solid var(--c-border);
+  border-radius: 8px;
+  color: var(--c-muted);
+  cursor: pointer;
+  padding: 6px 10px;
+  font-size: 0.78rem;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  touch-action: manipulation;
+}
+.del-btn:hover, .del-btn:active { border-color: #fca5a5; color: var(--c-red); background: var(--c-red-bg); }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header class="header">
+  <div class="logo">Trip<span>Trace</span></div>
+  <div class="rec-pill" id="pill">
+    <div class="rec-dot"></div>
+    <span id="pillTxt">Siap</span>
+  </div>
+</header>
+
+<!-- SCROLL CONTENT -->
+<div class="scroll">
+
+  <!-- ALERT -->
+  <div class="alert" id="alert"></div>
+
+  <!-- JARAK HERO -->
+  <div class="dist-hero">
+    <div class="dist-left">
+      <div class="dist-label">Jarak Tempuh</div>
+      <div>
+        <span class="dist-value" id="vDist">0</span><span class="dist-unit" id="vDistU">m</span>
+      </div>
+    </div>
+    <div class="dist-right">
+      <div class="dist-points">
+        <strong id="vPts">0</strong>
+        titik GPS
+      </div>
+    </div>
+  </div>
+
+  <!-- STATS 2x2 -->
+  <div class="stats-grid">
+    <div class="stat-card sc-green">
+      <div class="stat-accent"></div>
+      <div class="stat-lbl">Kecepatan</div>
+      <div class="stat-val" id="vSpd">0</div>
+      <div class="stat-unit">km/jam</div>
+    </div>
+    <div class="stat-card sc-amber">
+      <div class="stat-accent"></div>
+      <div class="stat-lbl">Rata-rata</div>
+      <div class="stat-val" id="vAvg">0</div>
+      <div class="stat-unit">km/jam</div>
+    </div>
+    <div class="stat-card sc-purple">
+      <div class="stat-accent"></div>
+      <div class="stat-lbl">Durasi</div>
+      <div class="stat-val" id="vDur">00:00</div>
+      <div class="stat-unit">mm : ss</div>
+    </div>
+    <div class="stat-card sc-blue">
+      <div class="stat-accent"></div>
+      <div class="stat-lbl">Max Kec.</div>
+      <div class="stat-val" id="vMax">0</div>
+      <div class="stat-unit">km/jam</div>
+    </div>
+  </div>
+
+  <!-- RUTE CANVAS -->
+  <div class="map-card">
+    <div class="map-header">
+      <span>Rute Perjalanan</span>
+      <span class="map-gps-acc" id="gpsAcc"></span>
+    </div>
+    <div class="map-wrap">
+      <canvas id="cvs"></canvas>
+      <div class="map-empty" id="mapEmpty">
+        <div class="map-empty-ico">📍</div>
+        <div class="map-empty-txt">Rute akan tergambar otomatis saat kamu bergerak</div>
+      </div>
+      <div class="map-coords" id="mapCoords"></div>
+    </div>
+  </div>
+
+  <!-- RIWAYAT -->
+  <div class="hist-card">
+    <div class="hist-head">Riwayat Perjalanan</div>
+    <div id="histList"></div>
+  </div>
+
+</div>
+
+<!-- TOMBOL FIXED BOTTOM -->
+<div class="btn-row">
+  <button class="btn btn-start" id="btnStart">▶ Mulai</button>
+  <button class="btn btn-stop"  id="btnStop"  disabled>■ Selesai</button>
+</div>
+
+<script>
+/* ════════════════════════════════════════
+   STATE
+════════════════════════════════════════ */
+var S = {
+  on:       false,
+  watchId:  null,
+  timerId:  null,
+  startMs:  0,
+  totalM:   0,       // total jarak meter
+  lastLL:   null,    // { lat, lng }
+  pts:      [],      // [ {lat,lng} ]
+  maxSpd:   0,       // kecepatan maks km/h
+  history:  []
+};
+
+/* ════════════════════════════════════════
+   INIT
+════════════════════════════════════════ */
+window.addEventListener('DOMContentLoaded', function() {
+  loadHist();
+  renderHist();
+  initCanvas();
+  document.getElementById('btnStart').addEventListener('click', startTrip);
+  document.getElementById('btnStop').addEventListener('click', stopTrip);
+  window.addEventListener('resize', initCanvas);
+});
+
+/* ════════════════════════════════════════
+   CANVAS — GAMBAR RUTE
+════════════════════════════════════════ */
+var cvs, ctx, dpr;
+
+function initCanvas() {
+  cvs = document.getElementById('cvs');
+  dpr = window.devicePixelRatio || 1;
+  var wrap = cvs.parentElement;
+  var W = wrap.offsetWidth;
+  var H = wrap.offsetHeight;
+  cvs.width  = W * dpr;
+  cvs.height = H * dpr;
+  cvs.style.width  = W + 'px';
+  cvs.style.height = H + 'px';
+  ctx = cvs.getContext('2d');
+  ctx.scale(dpr, dpr);
+  drawCanvas();
+}
+
+function drawCanvas() {
+  if (!ctx) return;
+  var W = cvs.width  / dpr;
+  var H = cvs.height / dpr;
+
+  ctx.clearRect(0, 0, W, H);
+
+  /* BG */
+  ctx.fillStyle = '#eef7ef';
+  ctx.fillRect(0, 0, W, H);
+
+  /* Grid */
+  ctx.strokeStyle = '#d4edda';
+  ctx.lineWidth = 1;
+  for (var x = 0; x <= W; x += 28) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
+  for (var y = 0; y <= H; y += 28) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+
+  var pts = S.pts;
+  if (pts.length < 2) return;
+
+  /* Bounding box */
+  var minLa = pts[0].lat, maxLa = pts[0].lat;
+  var minLo = pts[0].lng, maxLo = pts[0].lng;
+  for (var i = 1; i < pts.length; i++) {
+    if (pts[i].lat < minLa) minLa = pts[i].lat;
+    if (pts[i].lat > maxLa) maxLa = pts[i].lat;
+    if (pts[i].lng < minLo) minLo = pts[i].lng;
+    if (pts[i].lng > maxLo) maxLo = pts[i].lng;
+  }
+
+  var pad = 32;
+  var dLa = maxLa - minLa || 0.0005;
+  var dLo = maxLo - minLo || 0.0005;
+
+  function xy(p) {
+    return {
+      x: pad + ((p.lng - minLo) / dLo) * (W - pad * 2),
+      y: H - pad - ((p.lat - minLa) / dLa) * (H - pad * 2)
+    };
+  }
+
+  /* Shadow rute */
+  ctx.save();
+  ctx.shadowColor = 'rgba(16,185,129,0.3)';
+  ctx.shadowBlur  = 6;
+  ctx.beginPath();
+  ctx.strokeStyle = '#10b981';
+  ctx.lineWidth   = 4;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  var p0 = xy(pts[0]);
+  ctx.moveTo(p0.x, p0.y);
+  for (var j = 1; j < pts.length; j++) {
+    var pj = xy(pts[j]);
+    ctx.lineTo(pj.x, pj.y);
+  }
+  ctx.stroke();
+  ctx.restore();
+
+  /* Titik start — biru */
+  var ps = xy(pts[0]);
+  ctx.beginPath();
+  ctx.arc(ps.x, ps.y, 7, 0, Math.PI*2);
+  ctx.fillStyle = '#3b82f6';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+
+  /* Titik end — hijau pulsing */
+  var pe = xy(pts[pts.length-1]);
+  /* Lingkaran luar transparan */
+  ctx.beginPath();
+  ctx.arc(pe.x, pe.y, 12, 0, Math.PI*2);
+  ctx.fillStyle = 'rgba(16,185,129,0.2)';
+  ctx.fill();
+  /* Titik dalam */
+  ctx.beginPath();
+  ctx.arc(pe.x, pe.y, 7, 0, Math.PI*2);
+  ctx.fillStyle = '#10b981';
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+}
+
+/* ════════════════════════════════════════
+   GPS SUCCESS — dipanggil setiap ada update posisi
+════════════════════════════════════════ */
+function onGPS(pos) {
+  var lat  = pos.coords.latitude;
+  var lng  = pos.coords.longitude;
+  var spd  = pos.coords.speed;      // m/s, bisa null di beberapa HP
+  var acc  = pos.coords.accuracy;   // meter
+
+  /* ── Hitung jarak dari titik sebelumnya ── */
+  if (S.lastLL !== null) {
+    var d = hav(S.lastLL.lat, S.lastLL.lng, lat, lng);
+
+    /* Filter: tambahkan jarak hanya jika:
+       - GPS akurat (accuracy < 50m)
+       - Pergerakan minimal 2m (bukan noise)
+       - Tidak lebih dari 300m sekali lompat (sinyal loncat) */
+    if (acc < 50 && d >= 2 && d < 300) {
+      S.totalM += d;
+      S.lastLL  = { lat: lat, lng: lng };
+      S.pts.push({ lat: lat, lng: lng });
+      drawCanvas();
+      flash('vDist');
+    }
+    /* Kalau accuracy buruk tapi posisi berubah, tetap update lastLL
+       agar tidak double-count saat sinyal membaik */
+    else if (acc >= 50) {
+      S.lastLL = { lat: lat, lng: lng };
+    }
+  } else {
+    /* Titik pertama */
+    S.lastLL = { lat: lat, lng: lng };
+    S.pts.push({ lat: lat, lng: lng });
+    drawCanvas();
+  }
+
+  /* ── Sembunyikan overlay kosong ── */
+  if (S.pts.length > 1) {
+    document.getElementById('mapEmpty').classList.add('hidden');
+  }
+
+  /* ── Kecepatan (m/s → km/h) ── */
+  var kmh = 0;
+  if (spd !== null && spd >= 0) {
+    kmh = spd * 3.6;
+    if (kmh < 0.5) kmh = 0; /* diam */
+    kmh = parseFloat(kmh.toFixed(1));
+    if (kmh > S.maxSpd) { S.maxSpd = kmh; setVal('vMax', kmh); flash('vMax'); }
+  }
+  setVal('vSpd', kmh);
+
+  /* ── Rata-rata kecepatan ── */
+  if (S.startMs && S.totalM > 0) {
+    var hrs = (Date.now() - S.startMs) / 3600000;
+    if (hrs > 0) {
+      setVal('vAvg', (S.totalM / 1000 / hrs).toFixed(1));
+    }
+  }
+
+  /* ── Jarak (hero) ── */
+  updateDist();
+
+  /* ── Titik GPS count ── */
+  document.getElementById('vPts').textContent = S.pts.length;
+
+  /* ── Coords & Accuracy ── */
+  var coordEl = document.getElementById('mapCoords');
+  coordEl.style.display = 'block';
+  coordEl.textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+
+  var accEl = document.getElementById('gpsAcc');
+  accEl.style.display = 'inline';
+  accEl.textContent = '±' + Math.round(acc) + 'm';
+}
+
+function onGPSErr(err) {
+  var m = {
+    1: '⛔ Izin lokasi ditolak. Buka Pengaturan browser → izinkan akses lokasi, lalu muat ulang halaman.',
+    2: '📡 GPS tidak tersedia. Aktifkan GPS perangkat & pastikan ada sinyal.',
+    3: '⏱ GPS timeout. Pindah ke area terbuka lalu coba lagi.'
+  };
+  showAlert(m[err.code] || 'GPS error: ' + err.message, 'error');
+}
+
+/* ════════════════════════════════════════
+   UPDATE UI JARAK
+════════════════════════════════════════ */
+function updateDist() {
+  var m = S.totalM;
+  var valEl  = document.getElementById('vDist');
+  var unitEl = document.getElementById('vDistU');
+
+  if (m < 1000) {
+    valEl.textContent  = Math.round(m);
+    unitEl.textContent = 'm';
+  } else {
+    valEl.textContent  = (m / 1000).toFixed(2);
+    unitEl.textContent = 'km';
+  }
+  flash('vDist');
+}
+
+/* ════════════════════════════════════════
+   FLASH ANIMASI SAAT UPDATE
+════════════════════════════════════════ */
+function flash(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.remove('flashed');
+  void el.offsetWidth; /* reflow */
+  el.classList.add('flashed');
+}
+
+function setVal(id, v) {
+  var el = document.getElementById(id);
+  if (el) el.textContent = v;
+}
+
+/* ════════════════════════════════════════
+   TIMER DURASI
+════════════════════════════════════════ */
+function tickTimer() {
+  setVal('vDur', fmtDur(Date.now() - S.startMs));
+}
+
+/* ════════════════════════════════════════
+   MULAI & STOP PERJALANAN
+════════════════════════════════════════ */
+function startTrip() {
+  if (!navigator.geolocation) {
+    showAlert('Browser ini tidak mendukung GPS / Geolocation.', 'error');
+    return;
+  }
+
+  /* Reset */
+  S.on      = true;
+  S.startMs = Date.now();
+  S.totalM  = 0;
+  S.lastLL  = null;
+  S.pts     = [];
+  S.maxSpd  = 0;
+
+  /* Reset UI */
+  setVal('vDist', '0'); document.getElementById('vDistU').textContent = 'm';
+  setVal('vSpd', '0');
+  setVal('vAvg', '0');
+  setVal('vMax', '0');
+  setVal('vDur', '00:00');
+  setVal('vPts', '0');
+  document.getElementById('mapEmpty').classList.remove('hidden');
+  document.getElementById('mapCoords').style.display = 'none';
+  document.getElementById('gpsAcc').style.display    = 'none';
+  drawCanvas();
+
+  /* Mulai GPS — highAccuracy wajib untuk HP */
+  S.watchId = navigator.geolocation.watchPosition(onGPS, onGPSErr, {
+    enableHighAccuracy: true,  /* WAJIB untuk HP */
+    maximumAge:  0,            /* Selalu ambil posisi terbaru */
+    timeout:     15000
+  });
+
+  /* Timer per detik */
+  S.timerId = setInterval(tickTimer, 1000);
+
+  setUIState(true);
+  showAlert('📍 GPS aktif — perjalanan sedang direkam. Mulai bergerak!', 'info');
+}
+
+function stopTrip() {
+  if (S.watchId !== null) { navigator.geolocation.clearWatch(S.watchId); S.watchId = null; }
+  if (S.timerId !== null) { clearInterval(S.timerId); S.timerId = null; }
+  S.on = false;
+
+  var elapsed = S.startMs ? Date.now() - S.startMs : 0;
+  var avg = 0;
+  if (elapsed > 0 && S.totalM > 0) {
+    avg = (S.totalM / 1000 / (elapsed / 3600000)).toFixed(1);
+  }
+
+  /* Simpan */
+  var trip = {
+    id:   Date.now(),
+    date: new Date().toLocaleString('id-ID', { dateStyle:'medium', timeStyle:'short' }),
+    dist: S.totalM,
+    dur:  elapsed,
+    avg:  avg,
+    maxSpd: S.maxSpd.toFixed(1)
+  };
+  S.history.unshift(trip);
+  if (S.history.length > 50) S.history.length = 50;
+  saveHist();
+  renderHist();
+
+  setUIState(false);
+  showAlert('✅ Selesai! ' + fmtDist(S.totalM) + ' · ' + fmtDur(elapsed) + ' · Maks ' + S.maxSpd.toFixed(1) + ' km/j', 'success');
+}
+
+/* ════════════════════════════════════════
+   UI STATE
+════════════════════════════════════════ */
+function setUIState(on) {
+  document.getElementById('btnStart').disabled = on;
+  document.getElementById('btnStop').disabled  = !on;
+  var pill = document.getElementById('pill');
+  var txt  = document.getElementById('pillTxt');
+  pill.className = on ? 'rec-pill active' : 'rec-pill';
+  txt.textContent = on ? 'Merekam' : 'Siap';
+}
+
+/* ════════════════════════════════════════
+   ALERT
+════════════════════════════════════════ */
+var _aT = null;
+function showAlert(msg, type) {
+  var el = document.getElementById('alert');
+  el.textContent = msg;
+  el.className   = 'alert show ' + (type || 'info');
+  if (_aT) clearTimeout(_aT);
+  if (type !== 'error') {
+    _aT = setTimeout(function() { el.className = 'alert'; }, 7000);
+  }
+}
+
+/* ════════════════════════════════════════
+   RIWAYAT
+════════════════════════════════════════ */
+function loadHist() {
+  try { S.history = JSON.parse(localStorage.getItem('tt_v3') || '[]'); } catch(e) { S.history = []; }
+}
+function saveHist() {
+  try { localStorage.setItem('tt_v3', JSON.stringify(S.history)); } catch(e) {}
+}
+function renderHist() {
+  var el = document.getElementById('histList');
+  if (!S.history.length) {
+    el.innerHTML = '<div class="hist-empty">Belum ada riwayat perjalanan.<br>Mulai perjalanan untuk merekam.</div>';
+    return;
+  }
+  el.innerHTML = S.history.map(function(t) {
+    return '<div class="hist-item">' +
+      '<div class="hist-main">' +
+        '<div class="hist-date">📅 ' + t.date + '</div>' +
+        '<div class="hist-stats">' +
+          '<div class="hs"><span class="hs-v">' + fmtDist(t.dist)  + '</span><span class="hs-l">Jarak</span></div>' +
+          '<div class="hs"><span class="hs-v">' + fmtDur(t.dur)   + '</span><span class="hs-l">Durasi</span></div>' +
+          '<div class="hs"><span class="hs-v">' + t.avg + ' km/j' + '</span><span class="hs-l">Rata²</span></div>' +
+          (t.maxSpd ? '<div class="hs"><span class="hs-v">' + t.maxSpd + ' km/j</span><span class="hs-l">Maks</span></div>' : '') +
+        '</div>' +
+      '</div>' +
+      '<button class="del-btn" onclick="delTrip(' + t.id + ')">✕</button>' +
+    '</div>';
+  }).join('');
+}
+function delTrip(id) {
+  S.history = S.history.filter(function(t){ return t.id !== id; });
+  saveHist(); renderHist();
+}
+
+/* ════════════════════════════════════════
+   HAVERSINE — jarak 2 titik GPS dalam meter
+════════════════════════════════════════ */
+function hav(la1, lo1, la2, lo2) {
+  var R  = 6371000;
+  var dL = (la2-la1) * Math.PI/180;
+  var dO = (lo2-lo1) * Math.PI/180;
+  var a  = Math.sin(dL/2)*Math.sin(dL/2) +
+           Math.cos(la1*Math.PI/180)*Math.cos(la2*Math.PI/180)*
+           Math.sin(dO/2)*Math.sin(dO/2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+/* ════════════════════════════════════════
+   FORMAT
+════════════════════════════════════════ */
+function fmtDur(ms) {
+  var s  = Math.floor(ms/1000);
+  var h  = Math.floor(s/3600);
+  var m  = Math.floor((s%3600)/60);
+  s = s%60;
+  if (h > 0) return h + ':' + p2(m) + ':' + p2(s);
+  return p2(m) + ':' + p2(s);
+}
+function fmtDist(m) {
+  return m >= 1000 ? (m/1000).toFixed(2)+' km' : Math.round(m)+' m';
+}
+function p2(n) { return n < 10 ? '0'+n : ''+n; }
+</script>
+</body>
+</html>
